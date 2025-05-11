@@ -1,0 +1,40 @@
+{
+  "title": "Kotlin Coroutines の launch のコードリーディング",
+  "closed": false,
+  "archived": false,
+  "created_at": "2023-04-02",
+  "comments": [
+    {
+      "author": "watabee",
+      "created_at": "2023-04-02",
+      "body_markdown": "```kotlin\npublic fun CoroutineScope.launch(\n    context: CoroutineContext = EmptyCoroutineContext,\n    start: CoroutineStart = CoroutineStart.DEFAULT,\n    block: suspend CoroutineScope.() -> Unit\n): Job {\n    val newContext = newCoroutineContext(context)\n    val coroutine = if (start.isLazy)\n        LazyStandaloneCoroutine(newContext, block) else\n        StandaloneCoroutine(newContext, active = true)\n    coroutine.start(start, coroutine, block)\n    return coroutine\n}\n```\n\n`launch` 関数は上記のようになっている。\nやっていることは以下。\n\n- 新しい CoroutineContext を作成\n- コルーチンのインスタンスを作成し、開始する\n  - `start` が `CoroutineStart.Lazy` の場合 `LazyStandaloneCoroutine`、そうでない場合は `StandaloneCoroutine` のインスタンスを作る\n- 戻り値の `Job` のインスタンスとして作成したコルーチンのインスタンスを返す"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2023-04-02",
+      "body_markdown": "以下 `StandaloneCoroutine` の場合について見ていく。\n`StandaloneCoroutine` の定義は以下。\n\n```kotlin\nprivate open class StandaloneCoroutine(\n    parentContext: CoroutineContext,\n    active: Boolean\n) : AbstractCoroutine<Unit>(parentContext, initParentJob = true, active = active) {\n    ...\n}\n```",
+      "body_updated_at": "2023-04-02"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2023-04-02",
+      "body_markdown": "`AbstractCoroutine` の定義は以下。\n\n```kotlin\npublic abstract class AbstractCoroutine<in T>(\n    parentContext: CoroutineContext,\n    initParentJob: Boolean,\n    active: Boolean\n) : JobSupport(active), Job, Continuation<T>, CoroutineScope {\n  \n    ...\n\n    public fun <R> start(start: CoroutineStart, receiver: R, block: suspend R.() -> T) {\n        start(block, receiver, this)\n    }\n}\n```\n\n`Job` と `CoroutineScope` を継承している。\n\n`launch` 関数の `coroutine.start(start, coroutine, block)` の部分は上記の関数が呼ばれている。\nこのシグネチャから `R` は `StandaloneCoroutine` なので、`block` の型は `StandaloneCoroutine.() -> T` となる。\n\n`launch` 関数の第三引数の `block` の型は `CoroutineScope.() -> Unit` なので `block` のレシーバーは `StandaloneCoroutine` のインスタンスになっている。\n\nここから `launch` でコルーチンを開始した場合に以下のことが言える。\n\n1. `launch` を呼び出すとコルーチンのインスタンスが作成される\n2. 返り値の `Job` のインスタンスは 1 で作成したコルーチンのインスタンスと同じ\n3. `launch` の第三引数に指定するラムダのレシーバーである `CoroutineScope` は 1 で作成したコルーチンのインスタンスとなる"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2023-04-02",
+      "body_markdown": "`AbstractCoroutine` の `start` 関数の処理を見る。\n`CoroutineStart` の `invoke` メソッドが呼ばれている。\n\n```kotlin\n@InternalCoroutinesApi\npublic operator fun <R, T> invoke(block: suspend R.() -> T, receiver: R, completion: Continuation<T>): Unit =\n    when (this) {\n        DEFAULT -> block.startCoroutineCancellable(receiver, completion)\n        ATOMIC -> block.startCoroutine(receiver, completion)\n        UNDISPATCHED -> block.startCoroutineUndispatched(receiver, completion)\n        LAZY -> Unit // will start lazily\n    }\n```\n\n`CoroutineStart` の値によって呼び出される処理が変わっていて、ここでコルーチンが開始される模様。\n`LAZY` の場合は明示的に `start` を呼び出さないと開始されないので、ここでは開始されないようになっている。"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2023-04-02",
+      "body_markdown": "`CoroutineStart.DEFAULT` の場合に呼ばれる `block.startCoroutineCancellable(receiver, completion)` は以下のようになっている。\n\n```kotlin\ninternal fun <R, T> (suspend (R) -> T).startCoroutineCancellable(\n    receiver: R, completion: Continuation<T>,\n    onCancellation: ((cause: Throwable) -> Unit)? = null\n) =\n    runSafely(completion) {\n        createCoroutineUnintercepted(receiver, completion).intercepted().resumeCancellableWith(Result.success(Unit), onCancellation)\n    }\n```\n\n`createCoroutineUnintercepted()` はマルチプラットフォームの実装になっていて JVM の実装は以下。\n\nhttps://github.com/JetBrains/kotlin/blob/v1.8.10/libraries/stdlib/jvm/src/kotlin/coroutines/intrinsics/IntrinsicsJvm.kt#L118-L130\n\n`createCoroutineFromSuspendFunction` は以下のような実装になっている。\n\nhttps://github.com/JetBrains/kotlin/blob/v1.8.10/libraries/stdlib/jvm/src/kotlin/coroutines/intrinsics/IntrinsicsJvm.kt#L160-L203\n\nメソッド名が suspend 関数からコルーチンを作成する関数となっている。\n`Continuation` のインスタンスが返されているので、suspend 関数から `Continuation` を作成して JVM 上で実行できる形にしているような気がする。"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2023-04-02",
+      "body_markdown": "ちなみに `Job`  が子を持つようになっている。\n\nhttps://github.com/Kotlin/kotlinx.coroutines/blob/1.6.4/kotlinx-coroutines-core/common/src/Job.kt#L199-L216\n\nなのでコルーチンの階層構造は実際には `Job` の階層構造と言えそう。\n\n```kotlin\nval scope = CoroutineScope(Job())\nscope.launch {\n    ...\n}\n\nscope.launch {\n}\n```\n\n例えば上記のようなコードの場合は、以下のような関係性になっている。\n\n```\n                   Job (= ルートのCoroutineScope が持つ Job)\n                      /                   \\ \nJob (= StandaloneCoroutine)          Job (= StandaloneCoroutine)\n```",
+      "body_updated_at": "2023-04-02"
+    }
+  ]
+}

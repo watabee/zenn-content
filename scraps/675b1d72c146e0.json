@@ -1,0 +1,13 @@
+{
+  "title": "【Google I/O 2023】What's New in Material Design",
+  "closed": false,
+  "archived": false,
+  "created_at": "2023-06-03",
+  "comments": [
+    {
+      "author": "watabee",
+      "created_at": "2023-06-03",
+      "body_markdown": "https://www.youtube.com/watch?v=vnDhq8W98O4&list=PLOU2XLYxmsIIwZQkAPhJZg8jaNrrHk1DH&index=17\n\n\n## Overview of What's New (1:02~)\n\n- Material 3 の API が安定板になった\n    - Jetpack Compose で Material You 対応できる\n    - 日時選択のコンポーネントなどを追加\n    - View システムや Flutter も安定板に\n- カルーセルのコンポーネント\n    - 独特なアニメーション\n- Predictive Back のナビゲーションの改善\n    - ユーザーは移動先を予測できる\n- 新しいコントラストテーマ\n    - ユーザーはコンストラクトを標準、中、高から選べる\n- Figma Design Kit\n    - goo.gle/m3-design-kit\n- Large screen design guidance\n    - goo.gle/m3-deesign-kit\n\n## モーションとカラーについて (8:10~)\n\n- 新しく導入されたモーションは必ずしも予測通りに反応せず、予測した動作とは異なる意外性のある形で反応する\n- カルーセル\n    - 形状の変化とモーションで視差効果を実現\n    - 現在は View システムのライブラリとして導入されている\n    - 今後は View システムと Compose でもいくつかの種類を追加する予定\n- Predictive Back アニメーション\n    - Android View の検索、ボトムシート、サイドシートでも使える\n    - 今後 BottomNavBar や NavigationRail にも対応予定\n- Material You の特徴はダイナミックカラー\n    - 選択した壁紙に基づいてユーザーが独自のパレットを作成できる\n- 4つの新機能\n    - Color Fidelity\n    - Content-based Dynamic Color\n        - コンテンツごとの動的なカラー\n    - Contrast Schemes\n        - カラーパレットの特徴を保ちつつ、コントラスト比の違ったテーマを提供\n        - ダークテーマを含めて合計6つのテーマがある\n    - Monochrome\n        - カラースキームをモノクロとしてカスタマイズする機能\n\n## Relay (15:29~)\n\n- Figma でデザインしたものを Android Studio に Composable として渡すことができる\n- M3 Design Kit\n    - マテリアルをワークフローに近づけることができる\n- デザイントークン\n    - デザイナーとエンジニアが同じ言語で対話できる\n\n## ドキュメント\n\n- Get started\n    - material.io/get-started\n"
+    }
+  ]
+}

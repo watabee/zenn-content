@@ -1,0 +1,13 @@
+{
+  "title": "【Google I/O 2023】What's new in Firebase Crashlytics",
+  "closed": false,
+  "archived": false,
+  "created_at": "2023-05-25",
+  "comments": [
+    {
+      "author": "watabee",
+      "created_at": "2023-05-25",
+      "body_markdown": "# What's new in Firebase Crashlytics\n\nhttps://www.youtube.com/watch?v=UmAFhPeCNF4&list=PLOU2XLYxmsIIwZQkAPhJZg8jaNrrHk1DH&index=65\n\n## Finding Crashes (2:24~)\n\n- 昨年の Google I/O で Android Studio の App Quality Insights との統合を発表\n    - Android Studio からクラッシュレポートを見ることができ、スタックトレースをクリックして該当のコードに飛ぶことができる\n- Android Studio Flamingo の安定板に以下の変更が入っている\n    - Play Tracks Filtering\n        - Play Store の Production, Open, Closed, Internal のタイプでフィルタリングができる\n    - Signals Filtering\n        - Crashlytics の Signals でフィルタリングができる\n            - Signals には Repetitive, Fresh, Early, Regressed などが存在\n    - Notes\n        - クラッシュに対してメモが追加でき、チームと共有できる\n    - Closing an issue\n        - Close ボタンが配置されており、クラッシュを修正したら Android Studio からクローズすることができる\n\n## C++ memory bugs (3:54~)\n\n- メモリに関する問題に対処するため、Crashlytics は GWP-ASan をサポート\n    - GWP-ASan は解放後の使用やバッファオーバーフローなどのメモリに関するバグを検出、修正するのに役立つツール\n- GWP-ASan を有効にした状態だと Crashlytics は GWP-ASan のクラッシュレポートが表示されるようになる\n    - Issue signal の絞り込みで `GWP-ASan report` を指定することができる\n    - レポートの詳細でメモリのスタックトレースを表示してくれる\n\n設定は AndroidManifest で行う。\n\n```xml:AndroidManifest.xml\n<application android:gwpAsanMode=\"always\">\n    ...\n</application>    \n```\n\n\n## Improved Stack traces (5:42~)\n\n- Crashlytics はスタックトレースの質の向上を継続して行なっている\n- ネイティブのアプリについては改善を行い、ネイティブのスタックトレースはより詳細になって正確なファイルと行番号を検索できる\n- ネイティブコードを持つスレッドを含む ANR は完全にシンボル化されるようになった\n- Unity のアプリではラムダやジェネリクス、ローカル関数や型などの変換を追加することにより、IL2CPP のフレームをより意味のあるものにした\n- Swift や Kotlin といった言語ではコンパイラが追加のフレームを生成するため、スタックトレースを辿って問題の根本を得るのが難しい\n    - このようなケースに対処するため、シンボリケーションエンジンを改善\n- これらの改善は、最新の Crashlytics SDK と Gradle プラグインを使う必要がある\n\n\n## Similar stack traces (7:14~)\n\n- アプリで似たような状態でクラッシュが発生した場合、ほぼ同じ状態のスタックトレースが生成される\n    - 似たようなスタックトレースのクラッシュをグループ化して、Isssue にする\n    - スタックトレースが似ていてかつクラッシュの箇所が同じクラッシュのグループは、さらにサブグループ化され、これをバリアントと呼ぶ\n\n![](https://storage.googleapis.com/zenn-user-upload/2e42162bb59a-20230522.png)\n\n\n## Improved grouping algorithm (9:10~)\n\n- グループ化のアルゴリズムを改善\n\n\n## Jump to blamed commit (9:59~)\n\n- Android Studio の App Quality Insights でスタックトレースから、対象のコードのクラッシュが発生するようになったコミットまで飛ぶことができる\n    - Android Studio Hedgehog でサポート\n"
+    }
+  ]
+}

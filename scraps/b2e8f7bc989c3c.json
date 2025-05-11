@@ -1,0 +1,92 @@
+{
+  "title": "fd の使い方メモ",
+  "closed": true,
+  "archived": true,
+  "created_at": "2022-06-18",
+  "comments": [
+    {
+      "author": "watabee",
+      "created_at": "2022-06-18",
+      "body_markdown": "https://github.com/sharkdp/fd\n\n`fd` は `find` の代替となるコマンド。\nRust による実装で高速。\n\n実際に試したところ、かなり速かった。"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-06-18",
+      "body_markdown": "# 機能\n\n- `fd PATTERN` で検索できる\n  - `find -iname '*PATTERN*'` と同じ\n- 正規表現をデフォルトサポートし、glob ベースのパターンも使える\n- ディレクトリの探索を並列処理するため高速\n- ファイルの種類によって表示される色が変わる\n- デフォルトで大文字・小文字を区別しない検索だが、検索パターンに大文字が含まれている場合は大文字・小文字を区別する検索になる\n- 隠しディレクトリと隠しファイルはデフォルトで無視\n- `.gitignore` に記載されているパターンはデフォルトで無視\n- コマンド名が `find` より50%短い"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-06-18",
+      "body_markdown": "# ヘルプ表示\n\n`fd -h` でヘルプを表示できる。\n\n`fd --help` でもう少し詳細なヘルプが表示される。"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-06-18",
+      "body_markdown": "# 単純検索\n\n`fd` に一つの文字列を渡して実行すると、その単語を含むファイルやディレクトリを再帰的に検索する。\n例えば `netflix` という名前が含まれたスクリプトを探す場合は以下のように検索できる。\n\n```shell\n> fd netfl\nSoftware/python/imdb-ratings/netflix-details.py\n```"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-06-18",
+      "body_markdown": "# 正規表現による検索\n\n検索パターンは正規表現として扱われる。\n以下は `x` で始まって `rc` で終わるファイルやディレクトリを検索する。\n\n```shell\n> cd /etc\n> fd '^x.*rc$'\nX11/xinit/xinitrc\nX11/xinit/xserverrc\n```\n"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-06-18",
+      "body_markdown": "# 検索するディレクトリの指定\n\n特定のディレクトリ内を検索したい場合、`fd` の第2引数にディレクトリを指定できる。\n\n```shell\n> fd passwd /etc\n/etc/default/passwd\n/etc/pam.d/passwd\n/etc/passwd\n```\n"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-06-18",
+      "body_markdown": "# 全てのファイルを再帰的に一覧表示する\n\n`fd` は引数なしで呼び出すことができる。\nこれは現在のディレクトリを再帰的に全てのファイルを表示する。\n\n```shell\n> cd fd/tests\n> fd\ntestenv\ntestenv/mod.rs\ntests.rs\n```\n\n特定のディレクトリ以下の全てのファイルを一覧表示したい場合は、第一引数には `.` や `^` を指定する。\n\n```shell\n> fd . fd/tests/\ntestenv\ntestenv/mod.rs\ntests.rs\n```\n"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-06-18",
+      "body_markdown": "# 特定の拡張子のファイルを検索する\n\n`-e` (もしくは `--extension`) オプションでファイル拡張子を指定した検索が可能。\n\n```shell\n> cd fd\n> fd -e md\nCONTRIBUTING.md\nREADME.md\n```\n\n`-e` オプションは検索パターンと組み合わせて使える。\n\n```shell\n> fd -e rs mod\nsrc/fshelper/mod.rs\nsrc/lscolors/mod.rs\ntests/testenv/mod.rs\n```\n"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-06-18",
+      "body_markdown": "# 特定のファイル名を検索する\n\n`-g` (もしくは `--glob`) オプションで検索可能。\n\n```shell\n> fd -g libc.so /usr\n/usr/lib32/libc.so\n/usr/lib/libc.so\n```\n",
+      "children": [
+        {
+          "author": "watabee",
+          "created_at": "2022-06-18",
+          "body_markdown": "（これは `-g` を付けないと `libcxso` とか `libc.sox` とかも検索できちゃうという理解）"
+        }
+      ]
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-06-18",
+      "body_markdown": "# 隠しファイル、ignore ファイルを検索する\n\n`fd` ではデフォルトで隠しファイルや `.gitignore` の設定内容にマッチするファイルは検索対象から除外されている。\n\n`-H` (もしくは `--hidden`) オプションで隠しファイルを検索できる。\n\n```shell\n> fd pre-commit\n> fd -H pre-commit\n.git/hooks/pre-commit.sample\n```\n\n`-I` (もしくは `--no-ignore`) オプションで、`.gitignore` 対象のファイルを検索できる。\n\n```shell\n> fd num_cpu\n> fd -I num_cpu\ntarget/debug/deps/libnum_cpus-f5ce7ef99006aa05.rlib\n```\n\n隠しファイルや `.gitignore` 対象ファイルもまとめて検索したい場合は `-HI` とオプション指定する。"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-06-18",
+      "body_markdown": "# フルパスのマッチング\n\nデフォルトでは `fd` は各ファイルのファイル名にのみマッチする。\n`--full-path` もしくは `-p` オプションを使用すると、フルパスに対してマッチさせることができる。\n\n```shell\n> fd -p -g '**/.git/config'\n> fd -p '.*/lesson-\\d+/[a-z]+.(jpg|png)'\n```\n"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-06-18",
+      "body_markdown": "# コマンドの実行\n\n`fd` での検索結果ごとに外部コマンドを実行させることができる。\n\n- `-x` / `--exec` オプションで各検索結果に対して並列にコマンドを実行する\n- `-X` / `--exec-batch` オプションで、全ての検索結果を引数として外部コマンドを一度起動する\n\n## 例\n\nzip ファイルを全て unzip する。\n\n```shell\nfd -e zip -x unzip\n```\n\n[ripgrep](https://github.com/BurntSushi/ripgrep/) と組み合わせて、C++ファイルから `std::cout` を使っている箇所を検索する。\n\n```shell\nfd -e cpp -e cxx -e h -e hpp -X rg 'std::cout'\n```\n\njpeg ファイルを全て png ファイルに変換する。\n\n```shell\nfd -e jpg -x convert {} {.}.png\n```\n\n## Placeholder syntax\n\n- `{}` : 検索結果のパスを表す (`documents/images/party.jpg`)\n- `{.}` : `{}` と似ており、ファイルの拡張子がないもの (`documents/images/party`)\n- `{/}` : 検索結果の basename を表す (`party.jpg`)\n- `{//}` : 検索結果のパスの親 (`documents/images`)\n- `{/.}` : 拡張子を除いた basename (`{party}`)\n\n\n## Parallel vs. serial execution\n\n`-x` / `--exec` は `-j` / `--threads` オプションを使って並列ジョブ数を制御できる。\n`--threads=1` だと直列実行になる。\n",
+      "children": [
+        {
+          "author": "watabee",
+          "created_at": "2022-06-18",
+          "body_markdown": "jpeg ファイルを png ファイルに変換する処理とか便利！\n（そんなに使うことなさそうだけど...）"
+        }
+      ]
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-06-18",
+      "body_markdown": "# 特定のファイルやディレクトリを除外する\n\n`-E` (もしくは `--exclude`) オプションで、特定のファイルやディレクトリの検索を除外できる。\n\n```shell\n> fd -H -E .git …\n```\n\n```shell\n> fd -E '*.bak' …\n```\n\n`.fdignore` ファイルを作成することで、`.gitignore` ファイルと同じように `fd` による除外パターンを設定できる。\n\n```shell\n> cat ~/.fdignore\n/mnt/external-drive\n*.bak\n```\nグローバルに除外パターンを設定したければ、`~/.config/fd/ignore` にファイルを置く。\n"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-06-18",
+      "body_markdown": "# ファイルの削除\n\n検索結果にマッチした全てのファイルやディレクトリを削除することができる。\nファイルを削除したいだけであれば、`--exec-batch` / `-X` オプションで `rm` を呼ぶ。\n\n例えば、再帰的に全ての `.DS_Store` ファイルを削除したい場合は以下のコマンドを実行する。\n\n```shell\n> fd -H '^\\.DS_Store$' -tf -X rm\n```\n\n確認なしで削除するのが怖い場合は `rm` のインタラクティブオプションを使う。\n\n```shell\n> fd -H '^\\.DS_Store$' -tf -X rm -i\n```\n"
+    }
+  ]
+}

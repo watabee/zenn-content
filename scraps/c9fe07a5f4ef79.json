@@ -1,0 +1,75 @@
+{
+  "title": "[Android]Lifecycle 2.5.0変更点まとめ",
+  "closed": false,
+  "archived": false,
+  "created_at": "2022-07-01",
+  "comments": [
+    {
+      "author": "watabee",
+      "created_at": "2022-07-01",
+      "body_markdown": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.5.0"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-07-01",
+      "body_markdown": "# SavedStateHandle に getStateFlow() が追加\n\n`SavedStateHandle` に `StateFlow` のインスタンスを返す `getStateFlow()` が追加された。",
+      "body_updated_at": "2022-07-02",
+      "children": [
+        {
+          "author": "watabee",
+          "created_at": "2022-07-01",
+          "body_markdown": "永続化はしないけど画面回転した時にコンポーネントの状態を保持したい場合に使えそう。\n（一覧の昇順、降順の切り替えとか）\n\n```kotlin\nenum class ListOrder { ASC, DESC }\n\nclass MainViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {\n    \n    val listOrderFlow: StateFlow<ListOrder> = savedStateHandle.getStateFlow(\"ListOrder\", ListOrder.ASC)\n\n    fun toggleFavorite() {\n        savedStateHandle[\"ListOrder\"] = when (savedStateHandle.get<ListOrder>(\"ListOrder\")) {\n            ListOrder.ASC, null -> ListOrder.DESC\n            ListOrder.DESC -> ListOrder.ASC\n        }\n    }\n}\n```",
+          "body_updated_at": "2022-07-01"
+        }
+      ]
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-07-02",
+      "body_markdown": "# ViewModel の CreationExtras\n\n`ViewModelProvider.Factory` に `create(Class<T>, CreationExtras)` メソッドが新しく追加された。\nこのメソッドをオーバーライドして `CreationExtras` から `Application` や `SavedStateHandle` のインスタンスが取得できる。\n\nなので、`AndroidViewModelFactory` や `AbstractSavedStateViewModelFactory` を使う必要がなくなった。\n\n```kotlin\nclass MyViewModelFactory : ViewModelProvider.Factory {\n    @Suppress(\"UNCHECKED_CAST\")\n    override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {\n        return when (modelClass) {\n            HomeViewModel::class.java -> {\n                // CreationExtras から Application のインスタンスを取得して HomeViewModel に設定\n                HomeViewModel(extras[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]!!)\n            }\n            DetailViewModel::class.java -> {\n                // CreationExtras から SavedStateHandle のインスタンスを取得して DetailViewModel に設定\n                DetailViewModel(extras.createSavedStateHandle())\n            }\n            else -> throw IllegalArgumentException(\"Unknown class $modelClass\")\n        } as T\n    }\n}\n```",
+      "children": [
+        {
+          "author": "watabee",
+          "created_at": "2022-07-02",
+          "body_markdown": "`CreationExtras` の `createSavedStateHandle()` は拡張関数になっている。\n\n```kotlin\n@MainThread\npublic fun CreationExtras.createSavedStateHandle(): SavedStateHandle {\n    val savedStateRegistryOwner = this[SAVED_STATE_REGISTRY_OWNER_KEY]\n        ?: throw IllegalArgumentException(\n            \"CreationExtras must have a value by `SAVED_STATE_REGISTRY_OWNER_KEY`\"\n        )\n    val viewModelStateRegistryOwner = this[VIEW_MODEL_STORE_OWNER_KEY]\n        ?: throw IllegalArgumentException(\n            \"CreationExtras must have a value by `VIEW_MODEL_STORE_OWNER_KEY`\"\n        )\n\n    val defaultArgs = this[DEFAULT_ARGS_KEY]\n    val key = this[VIEW_MODEL_KEY] ?: throw IllegalArgumentException(\n        \"CreationExtras must have a value by `VIEW_MODEL_KEY`\"\n    )\n    return createSavedStateHandle(\n        savedStateRegistryOwner, viewModelStateRegistryOwner, key, defaultArgs\n    )\n}\n```"
+        },
+        {
+          "author": "watabee",
+          "created_at": "2022-07-02",
+          "body_markdown": "`ViewModelStoreOwner` が `Activity` の場合、`CreationExtras` は `ComponentActivity` の `getDefaultViewModelCreationExtras()` が返すインスタンスが使われる。\n\nこのメソッドの定義は以下のようになっている。\n\n```java\n@NonNull\n@Override\n@CallSuper\npublic CreationExtras getDefaultViewModelCreationExtras() {\n    MutableCreationExtras extras = new MutableCreationExtras();\n    if (getApplication() != null) {\n        extras.set(ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY, getApplication());\n    }\n    extras.set(SavedStateHandleSupport.SAVED_STATE_REGISTRY_OWNER_KEY, this);\n    extras.set(SavedStateHandleSupport.VIEW_MODEL_STORE_OWNER_KEY, this);\n    if (getIntent() != null && getIntent().getExtras() != null) {\n        extras.set(SavedStateHandleSupport.DEFAULT_ARGS_KEY, getIntent().getExtras());\n    }\n    return extras;\n}\n```\n\n`SavedStateHandle` のインスタンスが作成される際に、上記の `extras.set(SavedStateHandleSupport.DEFAULT_ARGS_KEY, getIntent().getExtras())` で設定された値を参照することによって、`Intent#putExtra()` で設定された値が `SavedStateHandle` にも設定されるようになっている。"
+        },
+        {
+          "author": "watabee",
+          "created_at": "2022-07-02",
+          "body_markdown": "`Fragment` にも `getDefaultViewModelCreationExtras()` メソッドが定義されており、以下のようになっている。\n\n```java\n@NonNull\n@Override\n@CallSuper\npublic CreationExtras getDefaultViewModelCreationExtras() {\n    Application application = null;\n    Context appContext = requireContext().getApplicationContext();\n    while (appContext instanceof ContextWrapper) {\n        if (appContext instanceof Application) {\n            application = (Application) appContext;\n            break;\n        }\n        appContext = ((ContextWrapper) appContext).getBaseContext();\n    }\n    if (application == null && FragmentManager.isLoggingEnabled(Log.DEBUG)) {\n        Log.d(FragmentManager.TAG, \"Could not find Application instance from \"\n                + \"Context \" + requireContext().getApplicationContext() + \", you will \"\n                + \"not be able to use AndroidViewModel with the default \"\n                + \"ViewModelProvider.Factory\");\n    }\n    MutableCreationExtras extras = new MutableCreationExtras();\n    if (application != null) {\n        extras.set(ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY, application);\n    }\n    extras.set(SavedStateHandleSupport.SAVED_STATE_REGISTRY_OWNER_KEY, this);\n    extras.set(SavedStateHandleSupport.VIEW_MODEL_STORE_OWNER_KEY, this);\n    if (getArguments() != null) {\n        extras.set(SavedStateHandleSupport.DEFAULT_ARGS_KEY, getArguments());\n    }\n    return extras;\n}\n```\n\nなので `ViewModelStoreOwner` が `Fragment` の場合は、`SavedStateHandle` のインスタンスを作成する際に `Fragment#setArguments()` で設定した `Bundle` の各値が設定されるので、`SavedStateHandle` からこれらの値が取得できる。"
+        },
+        {
+          "author": "watabee",
+          "created_at": "2022-07-02",
+          "body_markdown": "`Fragment` であれば、例えば以下のような感じで `setArguments()` で設定した値を `SavedStateHandle` から取得できる。\n\n```kotlin\nclass MainViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {\n    fun log() {\n        Log.d(\"MainViewModel\", \"key1 = ${savedStateHandle.get<String>(\"key1\")}\") // key1 = foo\n        Log.d(\"MainViewModel\", \"key2 = ${savedStateHandle.get<Int>(\"key2\")}\") // key2 = 42\n    }\n}\n\nclass MainFragment : Fragment() {\n\n    private val viewModel by viewModels<MainViewModel> {\n        object: ViewModelProvider.Factory {\n            override fun <T : ViewModel> create(modelClass: Class<T>, extras: CreationExtras): T {\n                @Suppress(\"UNCHECKED_CAST\")\n                return MainViewModel(extras.createSavedStateHandle()) as T\n            }\n        }\n    }\n\n    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n        viewModel.log()\n    }\n\n    companion object {\n        fun show(fragmentManager: FragmentManager) = fragmentManager.commit {\n            val fragment = MainFragment()\n            fragment.arguments = bundleOf(\"key1\" to \"foo\", \"key2\" to 42)\n            add(fragment, \"MainFragment\")\n        }\n    }\n}\n```"
+        }
+      ]
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-07-02",
+      "body_markdown": "#  Kotlin DSL による `viewModelFactory`\n\n`lifecycle-viewmodel` に定義されている `viewModelFactory` を使うことによって、Kotlin だと先ほどの `MyViewModelFactory` クラスが以下のように簡潔に記述できる。\n\n```kotlin\nval myViewModelFactory = viewModelFactory { \n    initializer { \n        HomeViewModel(get(ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY)!!)\n    }\n    initializer { \n        DetailViewModel(createSavedStateHandle())\n    }\n}\n```",
+      "body_updated_at": "2022-07-02"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-07-02",
+      "body_markdown": "# Compose の `viewModel()` による ViewModel の作成\n\n`lifecycle-viewmodel-compose` で提供される `viewModel()` を使うことによって、カスタムの`ViewModelProvider.Factory` を作成しなくても `ViewModel` のインスタンスを作成できる。\n\n```kotlin\n// @Composable の中で以下のように ViewModel を作成できる\nval viewModel = viewModel {\n    // このラムダは ViewModel が作られる初回にのみ呼ばれ、ラムダのレシーバーは CreationExtras になっている\n    DetailViewModel(createSavedStateHandle())\n}\n```\n"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-07-02",
+      "body_markdown": "# SavedStateHandle と Compose Saver の統合\n\n`lifecycle-viewmodel-compose` が `SavedStateHandle.saveable` を experimental API として提供。\n`rememberSaveable` と同じような挙動になる。\n\n```kotlin\nclass MainViewModel(savedStateHandle: SavedStateHandle) : ViewModel() {\n    var editMode by savedStateHandle.saveable { mutableStateOf(false) }\n}\n```"
+    },
+    {
+      "author": "watabee",
+      "created_at": "2022-07-02",
+      "body_markdown": "# ViewModel での後始末処理が便利に\n\n`ViewModel` に `addCloseable()` メソッドが追加され、`Closeable` オブジェクトを設定できるようになった。\nまた、オーバーロードコンストラクタとして一つ以上の `Closeable` オブジェクトを受け取れるようになった。\n\n上記で設定された `Closeable` オブジェクトは `ViewModel` がクリアされるタイミングで `close()` メソッドが呼ばれるため、手動で `onCleared()` に後始末処理を記述する必要がなくなる。\n\n```kotlin\nclass HogeUsecase : Closeable {\n    override fun close() {\n        // ここに後始末処理を書く\n    }\n}\n```\n\n```kotlin\nclass HogeViewModel(private val usecase: HogeUsecase) : ViewModel(usecase) {\n    // HogeUsecase の close() メソッドは ViewModel がクリアされるタイミングで呼ばれる\n    ...   \n}\n```"
+    }
+  ]
+}
